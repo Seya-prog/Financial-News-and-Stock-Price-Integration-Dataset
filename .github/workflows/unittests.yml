@@ -71,9 +71,18 @@ jobs:
       run: |
         pip install pytest pytest-cov
         # Ensure Cython is available for ta-lib compilation
-        pip install cython
-        # Install the rest of the requirements
-        if [ -f requirements.txt ]; then pip install --verbose --no-cache-dir --no-build-isolation -r requirements.txt; fi
+        pip install cython numpy==1.24.4
+        # Install problematic packages separately with --no-build-isolation
+        echo "Installing ta-lib and peewee separately..."
+        pip install --verbose --no-cache-dir --no-build-isolation ta-lib==0.4.24
+        pip install --verbose --no-cache-dir --no-build-isolation pynance==1.0.0
+        # Now install the rest of the requirements, excluding already installed packages
+        if [ -f requirements.txt ]; then
+          grep -v "^ta-lib==\|^pynance==\|^numpy==" requirements.txt > filtered_requirements.txt
+          echo "Filtered requirements:"
+          cat filtered_requirements.txt
+          pip install --verbose --no-cache-dir -r filtered_requirements.txt
+        fi
     - name: Test with pytest
       run: |
         pytest tests/ --cov=src/ --cov-report=xml
