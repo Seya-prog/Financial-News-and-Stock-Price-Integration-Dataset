@@ -19,6 +19,13 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+        activate-environment: test-env
     - name: Upgrade pip, setuptools, and wheel for Python 3.8
       if: matrix.python-version == '3.8'
       run: |
@@ -65,23 +72,22 @@ jobs:
         ls -l /usr/include/ta-lib/ta_*.h
 
     - name: Install dependencies
-      env:
-        TA_INCLUDE_PATH: /usr/include
-        TA_LIBRARY_PATH: /usr/lib
+      shell: bash -l {0}
       run: |
+        # Install ta-lib from conda-forge (pre-built binary)
+        conda install -c conda-forge ta-lib=0.4.24 -y
+        
+        # Install pip packages
         pip install pytest pytest-cov
-        # Ensure Cython is available for ta-lib compilation
-        pip install cython numpy==1.24.4
-        # Install problematic packages separately with --no-build-isolation
-        echo "Installing ta-lib and peewee separately..."
-        pip install --verbose --no-cache-dir --no-build-isolation ta-lib==0.4.24
-        pip install --verbose --no-cache-dir --no-build-isolation pynance==1.0.0
-        # Now install the rest of the requirements, excluding already installed packages
+        pip install numpy==1.24.4
+        pip install pynance==1.0.0
+        
+        # Create modified requirements file without the conda-installed packages
         if [ -f requirements.txt ]; then
-          grep -v "^ta-lib==\|^pynance==\|^numpy==" requirements.txt > filtered_requirements.txt
+          grep -v "^ta-lib==\|^numpy==" requirements.txt > filtered_requirements.txt
           echo "Filtered requirements:"
           cat filtered_requirements.txt
-          pip install --verbose --no-cache-dir -r filtered_requirements.txt
+          pip install -r filtered_requirements.txt
         fi
     - name: Test with pytest
       run: |
