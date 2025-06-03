@@ -77,8 +77,13 @@ jobs:
         # Install specific versions of numpy and other build dependencies
         pip install numpy==1.24.4 Cython
         
-        # Directly install ta-lib with proper environment and build isolation disabled
-        pip install --verbose --no-cache-dir --no-build-isolation ta-lib==0.4.24
+        # Install ta-lib from source directly
+        git clone https://github.com/mrjbq7/ta-lib.git
+        cd ta-lib
+        git checkout tags/TA_Lib-0.4.24
+        python setup.py build
+        python setup.py install
+        cd ..
         
         # Install the rest of the requirements, excluding ta-lib which we already installed
         if [ -f requirements.txt ]; then
