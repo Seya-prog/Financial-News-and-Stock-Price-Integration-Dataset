@@ -71,14 +71,29 @@ jobs:
         TA_INCLUDE_PATH: /usr/include
         TA_LIBRARY_PATH: /usr/lib
       run: |
-        # Install core packages with specific versions
-        pip install pytest==7.4.3 pytest-cov
-        pip install numpy==1.24.4 Cython
+        # Install core packages first
+        pip install pytest==7.4.3 pytest-cov numpy==1.24.4 Cython
         
-        # Directly install ta-lib with proper environment and build isolation disabled
-        pip install --verbose --no-cache-dir --no-build-isolation ta-lib==0.4.24
+        # Different installation strategies based on Python version
+        PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+        echo "Python version: $PYTHON_VERSION"
         
-        # Install packages one by one to prevent cancellations
+        if [[ "$PYTHON_VERSION" == 3.8* ]]; then
+          # For Python 3.8 - use a pre-built wheel from a custom index
+          pip install --index-url https://pypi.anaconda.org/ranaroussi/simple ta-lib==0.4.24 || \
+          pip install --index-url https://pypi.anaconda.org/masdeseiscaracteres/simple ta-lib==0.4.24 || \
+          pip install --no-build-isolation -e git+https://github.com/TA-Lib/ta-lib-python.git@0.4.24#egg=ta-lib
+        elif [[ "$PYTHON_VERSION" == 3.9* ]]; then
+          # For Python 3.9 - try conda-forge version
+          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl
+          pip install ./ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl
+        else
+          # For Python 3.10 and newer - try latest wheel
+          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl
+          pip install ./ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl
+        fi
+        
+        # Install remaining packages one by one
         if [ -f requirements.txt ]; then
           echo "Installing remaining packages one by one:"
           grep -v "^ta-lib==\|^numpy==\|^pytest==" requirements.txt > filtered_requirements.txt
