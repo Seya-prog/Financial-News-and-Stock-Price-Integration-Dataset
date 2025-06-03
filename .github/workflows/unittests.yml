@@ -45,10 +45,47 @@ jobs:
         tar -xzf ta-lib-0.4.0-src.tar.gz
         cd ta-lib/
         ./configure --prefix=/usr
-        make V=1
+        make
         sudo make install
         sudo ldconfig
         cd ..
+        
+        # Set environment variables
+        export TA_INCLUDE_PATH=/usr/include
+        export TA_LIBRARY_PATH=/usr/lib
+        
+        # Install Python build dependencies
+        pip install --upgrade pip setuptools wheel
+        pip install numpy==1.24.4 Cython
+        
+        # Get Python version
+        PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+        echo "Installing TA-Lib for Python $PYTHON_VERSION"
+        
+        # Try multiple installation methods for TA-Lib Python wrapper
+        set +e  # Don't exit on error
+        
+        # Method 1: Try pre-built wheels for specific Python versions
+        if [[ "$PYTHON_VERSION" == 3.9* ]]; then
+          echo "Trying pre-built wheel for Python 3.9..."
+          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl
+          pip install ./ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl && echo "Success with pre-built wheel!" && exit 0
+        elif [[ "$PYTHON_VERSION" == 3.10* ]]; then
+          echo "Trying pre-built wheel for Python 3.10..."
+          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl
+          pip install ./ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl && echo "Success with pre-built wheel!" && exit 0
+        fi
+        
+        # Method 2: Try alternative package repositories
+        echo "Trying alternative package repositories..."
+        pip install --index-url https://pypi.anaconda.org/ranaroussi/simple ta-lib==0.4.24 || \
+        pip install --index-url https://pypi.anaconda.org/masdeseiscaracteres/simple ta-lib==0.4.24 || \
+        pip install --no-build-isolation ta-lib==0.4.24 || \
+        pip install --no-build-isolation -e git+https://github.com/TA-Lib/ta-lib-python.git@0.4.24#egg=ta-lib
+        
+        # We'll proceed regardless of the result of the above commands
+        set -e
+
     - name: Verify TA-Lib C library installation
       run: |
         echo "Verifying TA-Lib C library installation..."
@@ -71,32 +108,13 @@ jobs:
         TA_INCLUDE_PATH: /usr/include
         TA_LIBRARY_PATH: /usr/lib
       run: |
-        # Install core packages first
-        pip install pytest==7.4.3 pytest-cov numpy==1.24.4 Cython
+        # Install core testing packages
+        pip install pytest==7.4.3 pytest-cov
         
-        # Different installation strategies based on Python version
-        PYTHON_VERSION=$(python --version | cut -d' ' -f2)
-        echo "Python version: $PYTHON_VERSION"
-        
-        if [[ "$PYTHON_VERSION" == 3.8* ]]; then
-          # For Python 3.8 - use a pre-built wheel from a custom index
-          pip install --index-url https://pypi.anaconda.org/ranaroussi/simple ta-lib==0.4.24 || \
-          pip install --index-url https://pypi.anaconda.org/masdeseiscaracteres/simple ta-lib==0.4.24 || \
-          pip install --no-build-isolation -e git+https://github.com/TA-Lib/ta-lib-python.git@0.4.24#egg=ta-lib
-        elif [[ "$PYTHON_VERSION" == 3.9* ]]; then
-          # For Python 3.9 - try conda-forge version
-          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl
-          pip install ./ta_lib-0.4.24-cp39-cp39-manylinux_2_17_x86_64.whl
-        else
-          # For Python 3.10 and newer - try latest wheel
-          wget -q https://github.com/TA-Lib/ta-lib-python/releases/download/0.4.24/ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl
-          pip install ./ta_lib-0.4.24-cp310-cp310-manylinux_2_17_x86_64.whl
-        fi
-        
-        # Install remaining packages one by one
+        # Install packages one by one with error handling
         if [ -f requirements.txt ]; then
           echo "Installing remaining packages one by one:"
-          grep -v "^ta-lib==\|^numpy==\|^pytest==" requirements.txt > filtered_requirements.txt
+          grep -v "^ta-lib==" requirements.txt > filtered_requirements.txt
           
           while IFS= read -r line || [[ -n "$line" ]]; do
             if [[ ! -z "$line" && "$line" != \#* ]]; then
