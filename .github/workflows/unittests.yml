@@ -78,8 +78,8 @@ jobs:
         pip install numpy==1.24.4 Cython
         
         # Install ta-lib from source directly
-        git clone https://github.com/mrjbq7/ta-lib.git
-        cd ta-lib
+        git clone https://github.com/mrjbq7/ta-lib.git ta-lib-python
+        cd ta-lib-python
         git checkout tags/TA_Lib-0.4.24
         python setup.py build
         python setup.py install
