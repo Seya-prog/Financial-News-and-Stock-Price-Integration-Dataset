@@ -62,6 +62,8 @@ jobs:
         TA_LIBRARY_PATH: /usr/lib
       run: |
         pip install pytest pytest-cov
+        # Ensure Cython is available for ta-lib compilation
+        pip install cython
         # Install the rest of the requirements
         if [ -f requirements.txt ]; then pip install --verbose --no-cache-dir -r requirements.txt; fi
     - name: Test with pytest
