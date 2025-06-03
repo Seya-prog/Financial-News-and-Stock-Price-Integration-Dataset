@@ -19,6 +19,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Upgrade pip, setuptools, and wheel for Python 3.8
+      if: matrix.python-version == '3.8'
+      run: |
+        python -m pip install --upgrade pip==23.3.2 setuptools==65.7.0 wheel
+    - name: Upgrade pip, setuptools, and wheel for Python 3.9
+      if: matrix.python-version == '3.9'
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+
     - name: Install TA-Lib C library
       run: |
         sudo apt-get update && sudo apt-get install -y build-essential wget
@@ -30,10 +39,6 @@ jobs:
         sudo make install
         sudo ldconfig
         cd ..
-    - name: Upgrade pip, setuptools, and wheel for compatibility
-      if: matrix.python-version == '3.8'
-      run: |
-        python -m pip install --upgrade pip==23.3.2 setuptools==65.7.0 wheel
     - name: Verify TA-Lib C library installation
       run: |
         echo "Verifying TA-Lib C library installation..."
@@ -57,10 +62,6 @@ jobs:
         TA_LIBRARY_PATH: /usr/lib
       run: |
         pip install pytest pytest-cov
-        # Attempt to install ta-lib separately with specific flags
-        echo "Attempting to install ta-lib==0.4.28..."
-        pip install --verbose --no-cache-dir --no-build-isolation "ta-lib==0.4.28"
-        echo "ta-lib installation attempt finished."
         # Install the rest of the requirements
         if [ -f requirements.txt ]; then pip install --verbose --no-cache-dir -r requirements.txt; fi
     - name: Test with pytest
