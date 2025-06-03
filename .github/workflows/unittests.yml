@@ -26,14 +26,40 @@ jobs:
         tar -xzf ta-lib-0.4.0-src.tar.gz
         cd ta-lib/
         ./configure --prefix=/usr
-        make
+        make V=1
         sudo make install
+        sudo ldconfig
         cd ..
+    - name: Verify TA-Lib C library installation
+      run: |
+        echo "Verifying TA-Lib C library installation..."
+        if [ -f /usr/include/ta-lib/ta_libc.h ]; then echo "Found /usr/include/ta-lib/ta_libc.h"; else echo "ERROR: /usr/include/ta-lib/ta_libc.h not found"; exit 1; fi
+        if [ -f /usr/lib/libta_lib.so ]; then echo "Found /usr/lib/libta_lib.so"; else echo "ERROR: /usr/lib/libta_lib.so not found"; exit 1; fi
+        if command -v ta-lib-config &> /dev/null; then
+            echo "ta-lib-config found in PATH. CFLAGS: $(ta-lib-config --cflags), LIBS: $(ta-lib-config --libs)"
+        elif [ -f /usr/bin/ta-lib-config ]; then
+            echo "ta-lib-config found at /usr/bin/ta-lib-config. CFLAGS: $(/usr/bin/ta-lib-config --cflags), LIBS: $(/usr/bin/ta-lib-config --libs)"
+        else
+            echo "Warning: ta-lib-config not found."
+        fi
+        echo "Listing /usr/lib for libta_lib*"
+        ls -l /usr/lib/libta_lib*
+        echo "Listing /usr/include/ta-lib for ta_*.h"
+        ls -l /usr/include/ta-lib/ta_*.h
+
     - name: Install dependencies
+      env:
+        TA_INCLUDE_PATH: /usr/include
+        TA_LIBRARY_PATH: /usr/lib
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Attempt to install ta-lib separately with specific flags
+        echo "Attempting to install ta-lib==0.4.28..."
+        pip install --verbose --no-cache-dir --no-build-isolation "ta-lib==0.4.28"
+        echo "ta-lib installation attempt finished."
+        # Install the rest of the requirements
+        if [ -f requirements.txt ]; then pip install --verbose --no-cache-dir -r requirements.txt; fi
     - name: Test with pytest
       run: |
         pytest tests/ --cov=src/ --cov-report=xml
