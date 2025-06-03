@@ -20,12 +20,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        auto-update-conda: true
-        python-version: ${{ matrix.python-version }}
-        activate-environment: test-env
+    # No Miniconda needed with this approach
     - name: Upgrade pip, setuptools, and wheel for Python 3.8
       if: matrix.python-version == '3.8'
       run: |
@@ -72,17 +67,20 @@ jobs:
         ls -l /usr/include/ta-lib/ta_*.h
 
     - name: Install dependencies
-      shell: bash -l {0}
+      env:
+        TA_INCLUDE_PATH: /usr/include
+        TA_LIBRARY_PATH: /usr/lib
       run: |
-        # Install ta-lib from conda-forge (pre-built binary)
-        conda install -c conda-forge ta-lib=0.4.24 -y
-        
-        # Install pip packages
+        # Install pytest first
         pip install pytest pytest-cov
-        pip install numpy==1.24.4
-        pip install pynance==1.0.0
         
-        # Create modified requirements file without the conda-installed packages
+        # Install specific versions of numpy and other build dependencies
+        pip install numpy==1.24.4 Cython
+        
+        # Directly install ta-lib with proper environment and build isolation disabled
+        pip install --verbose --no-cache-dir --no-build-isolation ta-lib==0.4.24
+        
+        # Install the rest of the requirements, excluding ta-lib which we already installed
         if [ -f requirements.txt ]; then
           grep -v "^ta-lib==\|^numpy==" requirements.txt > filtered_requirements.txt
           echo "Filtered requirements:"
